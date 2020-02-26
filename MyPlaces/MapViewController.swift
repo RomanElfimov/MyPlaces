@@ -12,11 +12,14 @@ import MapKit
 class MapViewController: UIViewController {
     
     var place: Place!
+    let annotationIdentifier = "annotationIdentifier"
     
     @IBOutlet weak var mapView: MKMapView!
     
     override func viewDidLoad() {
         super.viewDidLoad()
+        
+        mapView.delegate = self
         setupPlaceMark()
     }
     
@@ -68,4 +71,31 @@ class MapViewController: UIViewController {
 //MKMapViewDelegate - позволяет более расширенно работать с аннотациями - доб. картинку
 extension MapViewController: MKMapViewDelegate {
     
+    func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
+        
+        //если аннотация не является текущей локацией пользователя
+        guard !(annotation is MKUserLocation) else { return nil}
+        
+        var annotationView = mapView.dequeueReusableAnnotationView(withIdentifier: annotationIdentifier) as? MKPinAnnotationView
+        //если на карте нет ни одного представления с анотацией, которое можно переиспользовать
+        if annotationView == nil {
+            annotationView = MKPinAnnotationView(annotation: annotation, reuseIdentifier: annotationIdentifier)
+            //для отображения аннотации в виде баннера
+            annotationView?.canShowCallout = true
+        }
+        
+        //картинка для баннера
+        if let imageData = place.imageData {
+            
+            let imageView = UIImageView(frame: CGRect(x: 0, y: 0, width: 50, height: 50))
+            imageView.layer.cornerRadius = 10
+            imageView.clipsToBounds = true
+            imageView.image = UIImage(data: imageData)
+            
+            //помещаем картинку справа на баннере
+            annotationView?.rightCalloutAccessoryView = imageView
+        }
+        
+        return annotationView
+    }
 }
