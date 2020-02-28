@@ -10,7 +10,15 @@ import UIKit
 import MapKit
 import CoreLocation
 
+//протокол для пердачи адреса на new place view controller
+protocol MapViewControllerDelegate {
+    func getAddress(_ address: String?)
+}
+
 class MapViewController: UIViewController {
+    
+    //делегат класса MapViewController
+    var mapViewControllerDelegate: MapViewControllerDelegate?
     
     var place = Place()
     let annotationIdentifier = "annotationIdentifier"
@@ -20,13 +28,13 @@ class MapViewController: UIViewController {
     
     @IBOutlet weak var mapView: MKMapView!
     @IBOutlet weak var mapPinImage: UIImageView!
-    @IBOutlet weak var adressLabel: UILabel!
+    @IBOutlet weak var addressLabel: UILabel!
     @IBOutlet weak var doneButton: UIButton!
     
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        adressLabel.text = ""
+        addressLabel.text = ""
         mapView.delegate = self
         setupMapView()
         checkLocationServices()
@@ -43,6 +51,9 @@ class MapViewController: UIViewController {
     }
     
     @IBAction func doneButtonPressed() {
+        mapViewControllerDelegate?.getAddress(addressLabel.text)
+        //по нажатию на кнопку закрываем контроллер
+        dismiss(animated: true)
     }
     
 
@@ -53,7 +64,7 @@ class MapViewController: UIViewController {
             //прячем маркер на карте
             mapPinImage.isHidden = true
             //прячем надписи и кнопкпи на экране с картой
-            adressLabel.isHidden = true
+            addressLabel.isHidden = true
             doneButton.isHidden = true
         }
     }
@@ -122,7 +133,7 @@ class MapViewController: UIViewController {
         case .authorizedWhenInUse:
             //включено во время использования
             mapView.showsUserLocation = true
-            if incomeSegueIdentifire == "getAdress" { showUserLocation() }
+            if incomeSegueIdentifire == "getAddress" { showUserLocation() }
             break
         case .denied:
             //отклонено
@@ -228,11 +239,11 @@ extension MapViewController: MKMapViewDelegate {
 
                 //т.к. эти переменные опциональны
                 if streetName != nil && buildNumber != nil {
-                    self.adressLabel.text = "\(streetName!), \(buildNumber!)"
+                    self.addressLabel.text = "\(streetName!), \(buildNumber!)"
                 } else if streetName != nil {
-                    self.adressLabel.text = "\(streetName!)"
+                    self.addressLabel.text = "\(streetName!)"
                 } else {
-                    self.adressLabel.text = ""
+                    self.addressLabel.text = ""
                 }
             }
         }
