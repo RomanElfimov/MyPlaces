@@ -23,13 +23,23 @@ class MapViewController: UIViewController {
     var place = Place()
     let annotationIdentifier = "annotationIdentifier"
     let locationManager = CLLocationManager()
-    let regionInMeters = 10_000.0
+    let regionInMeters = 1_000.0
     var incomeSegueIdentifire = ""
+    //свойстово, принимающее координаты заведения
+    var placeCoordinate: CLLocationCoordinate2D?
+    var directionsArray: [MKDirections] = []
+    //свойство для хранения предыдущей локации пользователя
+    var previousLocation:CLLocation? {
+        didSet {
+            startingTrackingUserLocation()
+        }
+    }
     
     @IBOutlet weak var mapView: MKMapView!
     @IBOutlet weak var mapPinImage: UIImageView!
     @IBOutlet weak var addressLabel: UILabel!
     @IBOutlet weak var doneButton: UIButton!
+    @IBOutlet weak var goButton: UIButton!
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -45,6 +55,10 @@ class MapViewController: UIViewController {
         showUserLocation()
     }
     
+    @IBAction func goButtonPressed() {
+        getDirections()
+    }
+   
     //закрываем view controller
     @IBAction func closeVC() {
         dismiss(animated: true)
@@ -59,6 +73,9 @@ class MapViewController: UIViewController {
 
     private func setupMapView() {
         
+        //видимо кнопка построения маршрута
+        goButton.isHidden = true
+        
         if incomeSegueIdentifire == "showPlace" {
             setupPlaceMark()
             //прячем маркер на карте
@@ -66,8 +83,19 @@ class MapViewController: UIViewController {
             //прячем надписи и кнопкпи на экране с картой
             addressLabel.isHidden = true
             doneButton.isHidden = true
+            goButton.isHidden = false
         }
     }
+    
+    private func resetMapView(withNew directions: MKDirections) {
+        
+        //удаляем старый маршрут
+        mapView.removeOverlays(mapView.overlays)
+        directionsArray.append(directions)
+        //у каждого эл вызываем метод cancel - отменяет все маршруты, удаляет их с карты
+        let _ = directionsArray.map({ $0.cancel()} )
+    }
+    
     
     //маркер на карте
     private func setupPlaceMark() {
@@ -98,6 +126,7 @@ class MapViewController: UIViewController {
             guard let placemarkLocation = placemark?.location else { return }
             //если получилось определить местоположение маркера
             annotation.coordinate = placemarkLocation.coordinate
+            self.placeCoordinate = placemarkLocation.coordinate
             
             self.mapView.showAnnotations([annotation], animated: true)
             //добавляем аннотацию(название, тип) к маркеру
@@ -162,8 +191,94 @@ class MapViewController: UIViewController {
                                             longitudinalMeters: regionInMeters)
             mapView.setRegion(region, animated: true)
         }
-        
     }
+    
+    //условия, при кот сабатывает didSet previousLocation
+    private func startingTrackingUserLocation() {
+        
+        guard let previousLocation = previousLocation else { return }
+        let center = getCenterLocation(for: mapView)
+        
+        //рассстояние до текузего центра от предыдущ точки
+        guard center.distance(from: previousLocation) > 50 else { return }
+        self.previousLocation = center
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+            self.showUserLocation()
+        }
+    }
+    
+    //прокладка маршрута 
+    private func getDirections() {
+        
+        guard let location = locationManager.location?.coordinate else {
+            showAlert(title: "Error", message: "Current location is not found")
+            return
+        }
+        
+        locationManager.startUpdatingLocation()
+        previousLocation = CLLocation(latitude: location.latitude, longitude: location.longitude)
+        
+        //запрос на прокладку маршрута
+        guard let request = createDirectionRequest(from: location) else {
+            showAlert(title: "Error", message: "Destination is not found")
+            return
+        }
+        
+        let directions = MKDirections(request: request)
+        //избавляемся от старого маршрута
+        resetMapView(withNew: directions)
+        
+        directions.calculate { (response, error) in
+            
+            if let error = error {
+                print(error)
+                return
+            }
+            
+            guard let response = response else {
+                self.showAlert(title: "Error", message: "Direction is not available")
+                return
+            }
+
+            //перебор массива маршрутов
+            for route in response.routes {
+                self.mapView.addOverlay(route.polyline)
+                self.mapView.setVisibleMapRect(route.polyline.boundingMapRect, animated: true)
+                
+                //расстояние, время в пути
+                let distance = String(format: "%.1f", route.distance / 1000)
+                let timeInterval = route.expectedTravelTime / 60
+                
+                print("Расстояние до места: \(distance) км")
+                print("Время в пути составит \(timeInterval) мин")
+            }
+        }
+    }
+    
+    //настройка запроса на прокладку маршрута
+    private func createDirectionRequest(from coordinate: CLLocationCoordinate2D) -> MKDirections.Request? {
+        
+        guard let destinationCoordinate = placeCoordinate else { return nil }
+        //местоположение точки для начала маршрута
+        let startingLocation = MKPlacemark(coordinate: coordinate)
+        //точка пункта назначения
+        let destination = MKPlacemark(coordinate: destinationCoordinate)
+        
+        //запрос на построение маршрута
+        let request = MKDirections.Request()
+        //указыавем начальную точку
+        request.source = MKMapItem(placemark: startingLocation)
+        //ук. конечную точку
+        request.destination = MKMapItem(placemark: destination)
+        //тип транспорта
+        request.transportType = .automobile
+        //позволить строить несколько маршрутов, если есть альтернативные варианты
+        request.requestsAlternateRoutes = true
+        
+        return request
+    }
+    
     
     //находим центр карты (там где стоит маркер)
     private func getCenterLocation(for mapView: MKMapView) -> CLLocation {
@@ -220,6 +335,15 @@ extension MapViewController: MKMapViewDelegate {
         let center = getCenterLocation(for: mapView)
         let geocoder = CLGeocoder()
         
+        if incomeSegueIdentifire == "showPlace" && previousLocation != nil {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                self.showUserLocation()
+            }
+        }
+        
+        //отмена отложенного запроса
+        geocoder.cancelGeocode()
+        
         //координаты преобразуем в адрес
         geocoder.reverseGeocodeLocation(center) { (placemarks, error) in
             
@@ -247,6 +371,16 @@ extension MapViewController: MKMapViewDelegate {
                 }
             }
         }
+    }
+    
+    func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
+        
+        //линия для маршрута
+        let renderer = MKPolylineRenderer(overlay: overlay as! MKPolyline)
+        //красим линию
+        renderer.strokeColor = .blue
+        
+        return renderer
     }
 }
 
