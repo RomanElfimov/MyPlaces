@@ -16,32 +16,46 @@ class MapViewController: UIViewController {
     let annotationIdentifier = "annotationIdentifier"
     let locationManager = CLLocationManager()
     let regionInMeters = 10_000.0
+    var incomeSegueIdentifire = ""
     
     @IBOutlet weak var mapView: MKMapView!
+    @IBOutlet weak var mapPinImage: UIImageView!
+    @IBOutlet weak var adressLabel: UILabel!
+    @IBOutlet weak var doneButton: UIButton!
     
     override func viewDidLoad() {
         super.viewDidLoad()
         
+        adressLabel.text = ""
         mapView.delegate = self
-        setupPlaceMark()
+        setupMapView()
         checkLocationServices()
     }
     
     //при нажатии на кнопку mapview фокусируется на текущей геолокации
     @IBAction func centerViewInUserLocation() {
-        
-        if let location = locationManager.location?.coordinate {
-            let region = MKCoordinateRegion(center: location,
-                                            latitudinalMeters: regionInMeters,
-                                            longitudinalMeters: regionInMeters)
-            mapView.setRegion(region, animated: true)
-        }
-        
+        showUserLocation()
     }
     
     //закрываем view controller
     @IBAction func closeVC() {
         dismiss(animated: true)
+    }
+    
+    @IBAction func doneButtonPressed() {
+    }
+    
+
+    private func setupMapView() {
+        
+        if incomeSegueIdentifire == "showPlace" {
+            setupPlaceMark()
+            //прячем маркер на карте
+            mapPinImage.isHidden = true
+            //прячем надписи и кнопкпи на экране с картой
+            adressLabel.isHidden = true
+            doneButton.isHidden = true
+        }
     }
     
     //маркер на карте
@@ -108,6 +122,7 @@ class MapViewController: UIViewController {
         case .authorizedWhenInUse:
             //включено во время использования
             mapView.showsUserLocation = true
+            if incomeSegueIdentifire == "getAdress" { showUserLocation() }
             break
         case .denied:
             //отклонено
@@ -128,6 +143,26 @@ class MapViewController: UIViewController {
             print("New case is available")
         }
     }
+    
+    private func showUserLocation() {
+        if let location = locationManager.location?.coordinate {
+            let region = MKCoordinateRegion(center: location,
+                                            latitudinalMeters: regionInMeters,
+                                            longitudinalMeters: regionInMeters)
+            mapView.setRegion(region, animated: true)
+        }
+        
+    }
+    
+    //находим центр карты (там где стоит маркер)
+    private func getCenterLocation(for mapView: MKMapView) -> CLLocation {
+        
+        let latitude = mapView.centerCoordinate.latitude
+        let longitude = mapView.centerCoordinate.longitude
+        
+        return CLLocation(latitude: latitude, longitude: longitude)
+    }
+    
     
     private func showAlert(title: String, message: String) {
         let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
@@ -166,6 +201,41 @@ extension MapViewController: MKMapViewDelegate {
         }
         
         return annotationView
+    }
+    
+    //получаем адрес по указанной отметке
+    func mapView(_ mapView: MKMapView, regionDidChangeAnimated animated: Bool) {
+        
+        let center = getCenterLocation(for: mapView)
+        let geocoder = CLGeocoder()
+        
+        //координаты преобразуем в адрес
+        geocoder.reverseGeocodeLocation(center) { (placemarks, error) in
+            
+            if let error = error {
+                print(error)
+                return
+            }
+            
+            guard let placemarks = placemarks else { return }
+            
+            //объект core location placemark
+            let placemark = placemarks.first
+            let streetName = placemark?.thoroughfare
+            let buildNumber = placemark?.subThoroughfare
+            
+            DispatchQueue.main.async {
+
+                //т.к. эти переменные опциональны
+                if streetName != nil && buildNumber != nil {
+                    self.adressLabel.text = "\(streetName!), \(buildNumber!)"
+                } else if streetName != nil {
+                    self.adressLabel.text = "\(streetName!)"
+                } else {
+                    self.adressLabel.text = ""
+                }
+            }
+        }
     }
 }
 
