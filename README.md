@@ -13,7 +13,7 @@ Some description
 	<img src="https://github.com/RomanElfimov/MyPlaces/blob/master/Screenshots/Watch%20Targer%20On%20Map.png" width="400" height="790">
 	<img src="https://github.com/RomanElfimov/MyPlaces/blob/master/Screenshots/Edit%20Place.png" width="400" height="790">
 	<img src="https://github.com/RomanElfimov/MyPlaces/blob/master/Screenshots/Choose%20Image.png" width="400" height="790">
-	Search
+	"Search"
 	<img src="https://github.com/RomanElfimov/MyPlaces/blob/master/Screenshots/Search.png" width="400" height="790">
 	<img src="https://github.com/RomanElfimov/MyPlaces/blob/master/Screenshots/Delete.png" width="400" height="790">
 	<img src="https://github.com/RomanElfimov/MyPlaces/blob/master/Screenshots/Reverse%20Soritng.png" width="400" height="790">
