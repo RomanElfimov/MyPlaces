@@ -69,11 +69,14 @@ Each place contains image, name, location and type. Also you can rate each place
 	<img src="https://github.com/RomanElfimov/MyPlaces/blob/master/Screenshots/Name%20Sorting.png" width="400" height="790">
 </div>
 
-
-
-
-
-
+## Stack:
+## UITabelView
+## UIStackView
+## Realm
+## MapKit
+## CoreLocation
+## @IBDesignable, @IBInspectable
+## MVC Architecture
 
 
 
